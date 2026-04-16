@@ -948,14 +948,35 @@ async function doCompress(url, fd) {
   clearImage('img-before');
   clearImage('img-after');
   try {
-    const r = await fetch(url, { method: 'POST', body: fd });
-    if (!r.ok) { const e = await r.json(); throw new Error(e.detail || 'Error'); }
+    const r = await fetch(HCV_BACKEND_URL + '/compress/broadcast', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + HCV_API_KEY,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        file_size: 1048576
+      })
+    });
+    
+    if (!r.ok) { const e = await r.json(); throw new Error(e.error || 'Erreur API'); }
     const d = await r.json();
+    
+    if (!d.success) {
+      throw new Error(d.error || 'Erreur compression');
+    }
+    d = d.result;
+    d.ratio_vs_raw = d.ratio;
+    d.savings_vs_raw = d.savings_percent;
+    d.psnr = d.psnr;
+    d.ssim = d.ssim;
+    d.encode_ms = d.processing_time_ms;
+    d.bitexact_reproducible = d.bitexact;
+    
     lastResult = d;
     showResults(d);
     updateDashboard(d);
     updateCompare(d);
-    loadHistory();
   } catch (e) { alert('Erreur: ' + e.message); }
   finally { $('loading').classList.add('hidden'); }
 }
