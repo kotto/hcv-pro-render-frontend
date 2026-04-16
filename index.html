@@ -947,6 +947,19 @@ async function doCompress(url, fd) {
   $('no-results').classList.add('hidden');
   clearImage('img-before');
   clearImage('img-after');
+  
+  let fileSize = 1048576;
+  let fileName = null;
+  
+  // Extraction vrai taille fichier si upload
+  if (fd.has('file')) {
+    const file = fd.get('file');
+    if (file && file.size) {
+      fileSize = file.size;
+      fileName = file.name;
+    }
+  }
+
   try {
     const r = await fetch(HCV_BACKEND_URL + '/compress/broadcast', {
       method: 'POST',
@@ -956,7 +969,8 @@ async function doCompress(url, fd) {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        file_size: 1048576
+        file_size: fileSize,
+        file_name: fileName
       })
     });
     
