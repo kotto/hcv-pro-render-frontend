@@ -193,12 +193,63 @@ border:1px solid rgba(255,255,255,.08);box-shadow:0 8px 32px rgba(0,0,0,.4),inse
 
     <!-- Placeholder pour autres sections -->
     <section id="sec-compress" class="hidden space-y-6">
-      <div class="glass-card rounded-2xl p-8 text-center">
-        <h2 class="font-display text-2xl font-bold mb-4">🔒 Compression Render</h2>
-        <p class="text-gray-400">Compression avec backend privé sur Render.</p>
-        <div class="mt-6">
-          <button onclick="testCompression()" class="btn-primary px-6 py-3 rounded-lg">
-            Tester la Compression
+      <div class="glass-card rounded-2xl p-8">
+        <h2 class="font-display text-2xl font-bold mb-6">📤 Compression HCV PRO</h2>
+        
+        <div 
+          id="dropzone"
+          ondrop="handleDrop(event)" 
+          ondragover="handleDragOver(event)"
+          ondragleave="handleDragLeave(event)"
+          class="border-2 border-dashed border-white/20 rounded-xl p-12 text-center cursor-pointer hover:border-hcs-gold/50 transition-all mb-6"
+        >
+          <i data-lucide="upload-cloud" class="w-16 h-16 text-hcs-gold mx-auto mb-4"></i>
+          <p class="text-lg mb-2">Glissez vos fichiers ici</p>
+          <p class="text-gray-400 mb-4">ou cliquez pour sélectionner</p>
+          <input type="file" id="fileInput" class="hidden" onchange="handleFileSelect(event)">
+          <button onclick="document.getElementById('fileInput').click()" class="btn-secondary px-6 py-3 rounded-lg">
+            Sélectionner un fichier
+          </button>
+        </div>
+
+        <div id="uploadProgress" class="hidden mb-6">
+          <div class="flex justify-between mb-2">
+            <span id="fileNameDisplay" class="text-sm"></span>
+            <span id="fileSizeDisplay" class="text-sm text-gray-400"></span>
+          </div>
+          <div class="w-full bg-white/10 rounded-full h-2 overflow-hidden">
+            <div id="progressBar" class="bg-hcs-gold h-full transition-all duration-300" style="width: 0%"></div>
+          </div>
+          <p id="uploadStatus" class="text-sm text-gray-400 mt-2"></p>
+        </div>
+
+        <div id="compressionResult" class="hidden">
+          <div class="gold-border rounded-xl p-6">
+            <h3 class="font-bold text-lg mb-4">✅ Compression terminée</h3>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div>
+                <p class="text-gray-400 text-xs">Taille originale</p>
+                <p id="resultOriginal" class="font-bold text-lg"></p>
+              </div>
+              <div>
+                <p class="text-gray-400 text-xs">Taille compressée</p>
+                <p id="resultCompressed" class="font-bold text-lg"></p>
+              </div>
+              <div>
+                <p class="text-gray-400 text-xs">Ratio</p>
+                <p id="resultRatio" class="font-bold text-lg text-hcs-gold"></p>
+              </div>
+              <div>
+                <p class="text-gray-400 text-xs">Économie</p>
+                <p id="resultSavings" class="font-bold text-lg text-green-400"></p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-6 flex justify-center gap-4">
+          <button onclick="testCompression()" class="btn-secondary px-6 py-3 rounded-lg">
+            🧪 Test Demo
           </button>
         </div>
       </div>
@@ -322,6 +373,82 @@ function testCompression() {
     })
     .catch(function(error) {
         alert('Compression Error: ' + error.message);
+    });
+}
+
+// Upload Fonctions
+function formatSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1048576) return (bytes / 1024).toFixed(2) + ' KB';
+    return (bytes / 1048576).toFixed(2) + ' MB';
+}
+
+function handleDragOver(e) {
+    e.preventDefault();
+    document.getElementById('dropzone').classList.add('border-hcs-gold', 'bg-hcs-gold/5');
+}
+
+function handleDragLeave(e) {
+    e.preventDefault();
+    document.getElementById('dropzone').classList.remove('border-hcs-gold', 'bg-hcs-gold/5');
+}
+
+function handleDrop(e) {
+    e.preventDefault();
+    handleDragLeave(e);
+    if (e.dataTransfer.files.length) {
+        processFile(e.dataTransfer.files[0]);
+    }
+}
+
+function handleFileSelect(e) {
+    if (e.target.files.length) {
+        processFile(e.target.files[0]);
+    }
+}
+
+function processFile(file) {
+    document.getElementById('uploadProgress').classList.remove('hidden');
+    document.getElementById('compressionResult').classList.add('hidden');
+    document.getElementById('fileNameDisplay').textContent = file.name;
+    document.getElementById('fileSizeDisplay').textContent = formatSize(file.size);
+    document.getElementById('uploadStatus').textContent = 'Compression en cours...';
+    document.getElementById('progressBar').style.width = '10%';
+
+    setTimeout(() => { document.getElementById('progressBar').style.width = '30%'; }, 200);
+    
+    fetch(HCV_BACKEND_URL + '/compress/broadcast', {
+        method: 'POST',
+        headers: {
+            'Authorization': 'Bearer ' + HCV_API_KEY,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            file_size: file.size,
+            file_name: file.name
+        })
+    })
+    .then(response => {
+        document.getElementById('progressBar').style.width = '70%';
+        return response.json();
+    })
+    .then(data => {
+        document.getElementById('progressBar').style.width = '100%';
+        
+        if (data.success) {
+            document.getElementById('uploadStatus').textContent = 'Terminé';
+            document.getElementById('compressionResult').classList.remove('hidden');
+            
+            document.getElementById('resultOriginal').textContent = formatSize(data.result.original_size);
+            document.getElementById('resultCompressed').textContent = formatSize(data.result.compressed_size);
+            document.getElementById('resultRatio').textContent = data.result.ratio + ':1';
+            document.getElementById('resultSavings').textContent = data.result.savings_percent + '%';
+        } else {
+            document.getElementById('uploadStatus').textContent = 'Erreur: ' + data.error;
+        }
+    })
+    .catch(error => {
+        document.getElementById('uploadStatus').textContent = 'Erreur réseau';
     });
 }
 
