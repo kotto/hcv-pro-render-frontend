@@ -950,6 +950,7 @@ async function doCompress(url, fd) {
   try {
     const r = await fetch(HCV_BACKEND_URL + '/compress/broadcast', {
       method: 'POST',
+      mode: 'cors',
       headers: {
         'Authorization': 'Bearer ' + HCV_API_KEY,
         'Content-Type': 'application/json'
